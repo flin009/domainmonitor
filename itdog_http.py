@@ -119,6 +119,17 @@ def _map_row(row: List[str]) -> Dict[str, Any]:
             data["地区"] = " ".join(parts[1:])
         else:
             data["地区"] = d
+    operator = ""
+    line = data.get("线路", "")
+    if line in {"电信", "联通", "移动", "海外", "港澳台"}:
+        operator = line
+    else:
+        ippos = data.get("IP位置", "")
+        for op in ("电信", "联通", "移动", "铁通", "教育网", "广电", "港澳台"):
+            if op in ippos:
+                operator = op
+                break
+    data["运营商"] = operator
     return data
 
 
@@ -275,7 +286,7 @@ def run_itdog_http_playwright(domain: str, headless: bool = True, timeout_s: int
     return result
 
 
-def run_itdog_http(domain: str, headless: bool = True, timeout_s: int = 120) -> Dict[str, Any]:
+def run_itdog_http(domain: str, headless: bool = False, timeout_s: int = 120) -> Dict[str, Any]:
     """统一入口：先静态解析，若不足则回退到浏览器采集并做合并去重。"""
     logger.info("run start domain=%s headless=%s timeout_s=%s", domain, headless, timeout_s)
     encoded = quote_plus(domain)
