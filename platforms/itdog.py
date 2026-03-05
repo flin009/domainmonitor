@@ -79,8 +79,14 @@ class ItDogPlatform(MonitorPlatform):
                 real_proxy_ip = None
                 if httpx is not None:
                     try:
-                        with httpx.Client(proxies={"http://": proxy_server, "https://": proxy_server}, timeout=5) as client:
-                            resp = client.get("https://httpbin.org/ip")
+                        client = None
+                        if hasattr(httpx, "HTTPTransport"):
+                            transport = httpx.HTTPTransport(proxy=proxy_server)
+                            client = httpx.Client(transport=transport, timeout=5)
+                        else:
+                            client = httpx.Client(proxies={"http://": proxy_server, "https://": proxy_server}, timeout=5)
+                        with client as c:
+                            resp = c.get("https://httpbin.org/ip")
                             if resp.status_code == 200:
                                 real_proxy_ip = resp.json().get("origin")
                                 logging.info(f"detected real proxy ip: {real_proxy_ip}")
