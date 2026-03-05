@@ -88,7 +88,7 @@ class ItDogPlatform(MonitorPlatform):
                         logging.warning(f"fail to detect real proxy ip: {e}")
                 else:
                     logging.warning("httpx not available, skip proxy ip detection")
-            b0 = time.time()
+                launch_opts["proxy"] = {"server": proxy_server}
             b0 = time.time()
             browser = p.chromium.launch(**launch_opts)
             browser_launch_ms = (time.time() - b0) * 1000.0
@@ -146,7 +146,11 @@ class ItDogPlatform(MonitorPlatform):
                 except Exception:
                     pass
             logging.info("goto itdog http page")
-            page.goto("https://www.itdog.cn/http/", wait_until="domcontentloaded")
+            try:
+                page.goto("https://www.itdog.cn/http/", wait_until="domcontentloaded")
+            except Exception as e:
+                logging.error(f"请求 itdog 网站失败, url=https://www.itdog.cn/http/, 请检查网络或者代理: {e}")
+                raise
             input_locator = page.locator('input[name="url"], input#url, input[placeholder*="http"], input[placeholder*="域名"], input')
             input_locator.first.fill(domain)
             logging.info(f"filled domain={domain}")
