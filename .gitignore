@@ -1,1 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.Python
+.env
 run.log
+*.log
+playwright-report/
+screenshots/
+.DS_Store
+Thumbs.db
