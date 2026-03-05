@@ -1,4 +1,3 @@
-version: "3.8"
 services:
   db:
     image: postgres:15
@@ -6,6 +5,7 @@ services:
       POSTGRES_DB: domainmonitor
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: "1313575799"
+      TZ: Asia/Shanghai
     ports:
       - "5432:5432"
     volumes:
@@ -18,9 +18,11 @@ services:
       - .env
     environment:
       DB_HOST: db
+      TZ: Asia/Shanghai
     command: python task_producer/producer.py --batch-size 100 --loop-seconds 120
     volumes:
       - ./screenshots:/app/screenshots
+      - ./:/app/
   worker:
     build: .
     depends_on:
@@ -29,8 +31,10 @@ services:
       - .env
     environment:
       DB_HOST: db
+      TZ: Asia/Shanghai
     command: python task_worker/worker.py --batch-size 5 --lease-minutes 15 --poll-seconds 10 --headless
     volumes:
       - ./screenshots:/app/screenshots
+      - ./:/app/
 volumes:
   db_data:
