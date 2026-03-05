@@ -5,10 +5,15 @@ from urllib.parse import urlparse
 from typing import Any, Dict, List, Optional, Tuple
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from .base import MonitorPlatform
+import logging
 try:
     from ..config import get_config
 except Exception:
-    from config import get_config  # type: ignore
+    from config import get_config
+try:
+    import httpx
+except Exception:
+    httpx = None
 
 
 def parse_float(s: Optional[str]) -> Optional[float]:
@@ -66,16 +71,31 @@ class ItDogPlatform(MonitorPlatform):
         cfg = get_config()
         start = time.time()
         browser_launch_ms = None
+        real_proxy_ip = None
         with sync_playwright() as p:
             launch_opts = {"headless": headless}
+            
             if proxy_server:
-                launch_opts["proxy"] = {"server": proxy_server}
+                real_proxy_ip = None
+                if httpx is not None:
+                    try:
+                        with httpx.Client(proxies={"http://": proxy_server, "https://": proxy_server}, timeout=5) as client:
+                            resp = client.get("https://httpbin.org/ip")
+                            if resp.status_code == 200:
+                                real_proxy_ip = resp.json().get("origin")
+                                logging.info(f"detected real proxy ip: {real_proxy_ip}")
+                    except Exception as e:
+                        logging.warning(f"fail to detect real proxy ip: {e}")
+                else:
+                    logging.warning("httpx not available, skip proxy ip detection")
+            b0 = time.time()
             b0 = time.time()
             browser = p.chromium.launch(**launch_opts)
             browser_launch_ms = (time.time() - b0) * 1000.0
             context = browser.new_context()
             if user_agent:
                 context = browser.new_context(user_agent=user_agent)
+            logging.info(f"launch browser headless={headless} proxy={proxy_server or ''}")
             blocked_types = {"image", "media", "font", "stylesheet"}
             blocked_hosts = {
                 "doubleclick.net",
@@ -85,16 +105,27 @@ class ItDogPlatform(MonitorPlatform):
                 "adservice.google.com",
                 "gstatic.com",
             }
+            req_total = 0
+            req_blocked = 0
+            req_allowed = 0
+            req_xhr = 0
             def handle_route(route, request):
                 try:
+                    nonlocal req_total, req_blocked, req_allowed, req_xhr
+                    req_total += 1
+                    if request.resource_type in {"xhr", "fetch"}:
+                        req_xhr += 1
                     if request.resource_type in blocked_types:
+                        req_blocked += 1
                         return route.abort()
                     host = urlparse(request.url).hostname or ""
                     for h in blocked_hosts:
                         if host.endswith(h):
+                            req_blocked += 1
                             return route.abort()
                 except Exception:
                     pass
+                req_allowed += 1
                 return route.continue_()
             context.route("**/*", handle_route)
             page = context.new_page()
@@ -114,9 +145,11 @@ class ItDogPlatform(MonitorPlatform):
                     )
                 except Exception:
                     pass
+            logging.info("goto itdog http page")
             page.goto("https://www.itdog.cn/http/", wait_until="domcontentloaded")
             input_locator = page.locator('input[name="url"], input#url, input[placeholder*="http"], input[placeholder*="域名"], input')
             input_locator.first.fill(domain)
+            logging.info(f"filled domain={domain}")
             btn = page.locator("button[onclick*=\"check_form('fast')\"]")
             if btn.count() == 0:
                 btn = page.get_by_role("button", name=re.compile("检测|开始|测速|测试"))
@@ -125,18 +158,21 @@ class ItDogPlatform(MonitorPlatform):
                 elif btn.count() == 0:
                     btn = page.locator("button, .btn, .button").first
             btn.click()
+            logging.info("start detection clicked")
             done = False
             for _ in range(120):
                 try:
                     progress = page.locator("text=当前进度")
                     if progress.count() > 0 and "100%" in progress.first.inner_text():
                         done = True
+                        logging.info("progress reached 100%")
                         break
                 except Exception:
                     pass
                 rows = page.locator("table tbody tr")
                 if rows.count() > 0:
                     done = True
+                    logging.info(f"table rows appeared count={rows.count()}")
                     break
                 time.sleep(1)
             if not done:
@@ -154,6 +190,7 @@ class ItDogPlatform(MonitorPlatform):
                 try:
                     page.get_by_text(label, exact=False).first.click(timeout=2000)
                     page.wait_for_timeout(800)
+                    logging.info(f"section clicked label={label}")
                 except Exception:
                     pass
             stable = 0
@@ -190,6 +227,7 @@ class ItDogPlatform(MonitorPlatform):
             except Exception:
                 pass
             page.screenshot(path=screenshot_path, full_page=True)
+            logging.info(f"screenshot path={screenshot_path}")
             results: List[Dict[str, Any]] = []
             tables = page.locator("table")
             for i in range(tables.count()):
@@ -353,4 +391,14 @@ class ItDogPlatform(MonitorPlatform):
             context.close()
             browser.close()
         collect_ms = (time.time() - start) * 1000.0
-        return results, screenshot_path, {"browser_launch_ms": browser_launch_ms or 0.0, "collect_ms": collect_ms}
+        metrics = {
+            "browser_launch_ms": browser_launch_ms or 0.0,
+            "collect_ms": collect_ms,
+            "request_total": req_total,
+            "request_blocked": req_blocked,
+            "request_allowed": req_allowed,
+            "request_xhr": req_xhr,
+            "real_proxy_ip": real_proxy_ip,
+        }
+        logging.info(f"results collected count={len(results)} req_total={req_total} req_blocked={req_blocked} req_allowed={req_allowed} req_xhr={req_xhr}")
+        return results, screenshot_path, metrics

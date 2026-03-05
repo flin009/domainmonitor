@@ -3,3 +3,4 @@ psycopg2-binary>=2.9.9
 python-dotenv>=1.0.1
 Pillow>=10.0.0
 pytesseract>=0.3.10
+httpx>=0.25.0

@@ -76,6 +76,17 @@ class Db:
             )
             self._conn.commit()
 
+    def update_task_proxy(self, task_id: int, proxy_server: Optional[str]) -> None:
+        if proxy_server is None:
+            return
+        self.connect()
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "update monitor_tasks set proxy_server=%s where id=%s",
+                (proxy_server, task_id),
+            )
+            self._conn.commit()
+
     def insert_results(self, results: List[Dict[str, Any]]) -> int:
         if not results:
             return 0
