@@ -36,5 +36,20 @@ services:
     volumes:
       - ./screenshots:/app/screenshots
       - ./:/app/
+  admin:
+    build: .
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      TZ: Asia/Shanghai
+    command: python admin_app.py
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./screenshots:/app/screenshots
+      - ./:/app/
 volumes:
   db_data:

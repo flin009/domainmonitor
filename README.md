@@ -164,3 +164,72 @@ python task_worker/worker.py --batch-size 5 --lease-minutes 15 --poll-seconds 10
 - itdog 页面无法访问：日志会输出“请求 itdog 网站失败…请检查网络或者代理”，检查 DEFAULT_PROXY 或机器网络
 - 没有新任务：eligible_targets=0，说明 last_scheduled_at+interval 尚未到期；可手动调整 last_scheduled_at 或调小间隔
 - 代理与出口 IP：日志含 “detected real proxy ip”，若缺失或为 null，说明探测失败但不影响代理设置
+
+## 后台管理（Flask）部署
+- 功能：登录/注销/修改密码、检测目标的列表/新增/编辑、检测结果查询（最近一次任务）
+- 应用入口：`admin_app.py`，默认端口 `8000`
+
+### 环境准备
+- 依赖安装：项目根目录执行
+
+```bash
+pip install -r requirements.txt
+```
+
+- 数据库配置：在 `.env` 中设置
+  - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+- 会话与管理员：
+  - `FLASK_SECRET` 或 `ADMIN_SECRET`：设置会话密钥（建议随机字符串）
+  - `ADMIN_USERNAME`（可选，默认 `admin`）
+  - `ADMIN_INITIAL_PASSWORD`（可选，默认 `admin123`，首次运行自动创建，登录后请尽快在“修改密码”更新）
+
+### 开发运行
+
+```bash
+python admin_app.py
+# 浏览器访问 http://127.0.0.1:8000/
+```
+
+### 生产部署（示例）
+- Linux（gunicorn）：
+
+```bash
+pip install gunicorn
+export FLASK_SECRET="your-secret"
+export DB_HOST="db-host" DB_PORT=5432 DB_USER="postgres" DB_PASSWORD="***" DB_NAME="domainmonitor"
+gunicorn -w 2 -b 0.0.0.0:8000 admin_app:create_app
+```
+
+- Windows（waitress）：
+
+```bash
+pip install waitress
+set FLASK_SECRET=your-secret
+waitress-serve --host=0.0.0.0 --port=8000 admin_app:create_app
+```
+
+- 反向代理（Nginx，示意）：
+
+```
+server {
+  listen 80;
+  server_name your-domain;
+  location / {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
+}
+```
+
+### 页面入口与说明
+- `/login` 登录，`/logout` 注销，`/password` 修改密码
+- `/targets` 检测目标列表；`/targets/new` 新增；`/targets/<id>/edit` 编辑
+- `/results` 检测结果查询（输入域名，展示最近一次任务的所有结果；支持表头排序）
+- 新增目标默认启用；域名重复或为空会有友好提示
+
+### 常见问题
+- “域名已存在”：后台已做去重检查；如需录入同域名不同任务，请考虑在业务上区分
+- 登录失败：确认管理员账户是否首次初始化；检查 `FLASK_SECRET` 是否设置
+- 页面空白或报错：查看控制台日志与 `run.log`，或检查数据库连通性与权限
