@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h2>检测目标</h2>
+  <div style="margin-bottom:12px;">
+    <a class="btn" href="{{ url_for('target_new') }}">新增检测目标</a>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>域名</th>
+        <th>状态</th>
+        <th>优先级</th>
+        <th>更新时间</th>
+        <th>上次调度时间</th>
+        <th>检测周期(分钟)</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td>{{ r.domain }}</td>
+        <td>{{ '启用' if r.enabled else '停用' }}</td>
+        <td>{{ r.priority }}</td>
+        <td>{{ r.updated_at or '' }}</td>
+        <td>{{ r.last_scheduled_at or '' }}</td>
+        <td>{{ r.schedule_interval_minutes }}</td>
+        <td>
+          <a class="btn secondary" href="{{ url_for('target_edit', target_id=r.id) }}">编辑</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

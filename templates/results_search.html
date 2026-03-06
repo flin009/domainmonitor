@@ -1,0 +1,98 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h2>检测结果查询</h2>
+  <form method="post" action="{{ url_for('results_query') }}" style="margin-bottom:16px;">
+    <div class="form-row">
+      <label>域名</label>
+      <input type="text" name="domain" value="{{ q_domain or '' }}" required>
+    </div>
+    <button class="btn" type="submit">查询最近一次检测结果</button>
+  </form>
+  {% if task %}
+    <div style="margin:10px 0;color:#333;">
+      <div>域名：<strong>{{ task.domain }}</strong></div>
+      <div>任务ID：{{ task.id }}，状态：{{ task.status }}，创建时间：{{ task.created_at }}</div>
+    </div>
+  {% endif %}
+  {% if rows %}
+    <div style="margin:10px 0 14px 0;">
+      <div>总检测节点：<strong>{{ total_nodes }}</strong></div>
+      {% if status_counts and status_counts|length > 0 %}
+        <div>状态统计：
+          {% for s, c in status_counts %}
+            <span style="display:inline-block;margin-right:10px;">{{ s }}：{{ c }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+      <div>平均总耗时：<strong>{{ avg_total|secs }}</strong></div>
+    </div>
+    <table id="results-table" style="border:1px solid #e5eaf0;border-radius:6px;overflow:hidden;">
+      <thead>
+        <tr>
+          <th class="sortable">检测点</th>
+          <th class="sortable">响应IP</th>
+          <th class="sortable">位置</th>
+          <th class="sortable">状态</th>
+          <th class="sortable">总耗时</th>
+          <th class="sortable">解析</th>
+          <th class="sortable">连接</th>
+          <th class="sortable">下载</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ (r.operator or '') ~ ' ' ~ (r.region or '') }}</td>
+          <td>{{ r.response_ip or '' }}</td>
+          <td>{{ r.ip_location or '' }}</td>
+          <td>{{ r.status_code or '' }}</td>
+          <td>{{ r.total_time|secs }}</td>
+          <td>{{ r.dns_time|secs }}</td>
+          <td>{{ r.connect_time|secs }}</td>
+          <td>{{ r.download_time|secs }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <script>
+      (function(){
+        var table = document.getElementById('results-table');
+        if (!table) return;
+        var thead = table.querySelector('thead');
+        var tbody = table.querySelector('tbody');
+        var headers = Array.prototype.slice.call(thead.querySelectorAll('th'));
+        headers.forEach(function(th, idx){
+          th.style.cursor = 'pointer';
+          th.addEventListener('click', function(){
+            var dir = th.getAttribute('data-dir') === 'asc' ? 'desc' : 'asc';
+            headers.forEach(function(h){ h.removeAttribute('data-dir'); h.innerText = h.innerText.replace(/\s*[▲▼]$/, ''); });
+            th.setAttribute('data-dir', dir);
+            th.innerText = th.innerText + (dir === 'asc' ? ' ▲' : ' ▼');
+            var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+            rows.sort(function(a, b){
+              function valOf(tr){
+                var tx = (tr.cells[idx].innerText || '').trim();
+                if (!tx || tx === '--') return null;
+                var m = tx.match(/^(\d+(?:\.\d+)?)s$/);
+                if (m) return parseFloat(m[1]);
+                var n = Number(tx);
+                if (!isNaN(n)) return n;
+                return tx.toLowerCase();
+              }
+              var av = valOf(a), bv = valOf(b);
+              if (av === null && bv === null) return 0;
+              if (av === null) return 1;
+              if (bv === null) return -1;
+              var na = typeof av === 'number', nb = typeof bv === 'number';
+              var cmp = 0;
+              if (na && nb) cmp = av - bv;
+              else cmp = av.localeCompare(bv, 'zh');
+              return dir === 'asc' ? cmp : -cmp;
+            });
+            rows.forEach(function(r){ tbody.appendChild(r); });
+          });
+        });
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

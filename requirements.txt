@@ -4,3 +4,4 @@ python-dotenv>=1.0.1
 Pillow>=10.0.0
 pytesseract>=0.3.10
 httpx>=0.25.0
+Flask>=3.0.0

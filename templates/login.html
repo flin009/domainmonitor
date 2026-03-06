@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h2>登录</h2>
+  <form method="post" action="{{ url_for('do_login') }}">
+    <div class="form-row">
+      <label>用户名</label>
+      <input type="text" name="username" required>
+    </div>
+    <div class="form-row">
+      <label>密码</label>
+      <input type="password" name="password" required>
+    </div>
+    <button class="btn" type="submit">登录</button>
+  </form>
+  <p style="margin-top:12px;color:#666;">首次运行会创建默认账号：admin / admin123，请及时修改密码。</p>
+{% endblock %}

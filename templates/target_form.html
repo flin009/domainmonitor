@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block content %}
+  {% if item %}
+    <h2>编辑检测目标</h2>
+    <form method="post" action="{{ url_for('target_update', target_id=item.id) }}">
+  {% else %}
+    <h2>新增检测目标</h2>
+    <form method="post" action="{{ url_for('target_create') }}">
+  {% endif %}
+    <div class="form-row">
+      <label>域名</label>
+      <input type="text" name="domain" value="{{ item.domain if item else '' }}" required>
+    </div>
+    <div class="form-row">
+      <label>启用</label>
+      <input type="checkbox" name="enabled" {% if item %}{% if item.enabled %}checked{% endif %}{% else %}checked{% endif %}>
+    </div>
+    <div class="form-row">
+      <label>优先级</label>
+      <input type="number" name="priority" value="{{ item.priority if item else 0 }}" step="1">
+    </div>
+    <div class="form-row">
+      <label>检测周期(分钟)</label>
+      <input type="number" name="schedule_interval_minutes" value="{{ item.schedule_interval_minutes if item else 10 }}" step="1" min="1">
+    </div>
+    <button class="btn" type="submit">{% if item %}保存{% else %}创建{% endif %}</button>
+    <a class="btn secondary" href="{{ url_for('targets') }}">返回</a>
+  </form>
+{% endblock %}
