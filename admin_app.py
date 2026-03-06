@@ -315,12 +315,12 @@ def create_app():
         try:
             with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
                 cur.execute(
-                    "SELECT id, domain, created_at, status FROM monitor_tasks WHERE domain=%s ORDER BY created_at DESC LIMIT 1",
+                    "SELECT id, domain, created_at, status FROM monitor_tasks WHERE domain=%s AND status<>'running' ORDER BY created_at DESC LIMIT 1",
                     (domain,),
                 )
                 task = cur.fetchone()
                 if not task:
-                    flash("没有检测记录")
+                    flash("没有已完成的检测记录")
                     return render_template("results_search.html", rows=None, task=None, q_domain=domain)
                 cur.execute(
                     """
