@@ -47,7 +47,7 @@ services:
       TZ: Asia/Shanghai
     command: python admin_app.py
     ports:
-      - "8000:8000"
+      - "80:8000"
     volumes:
       - ./screenshots:/app/screenshots
       - ./:/app/
