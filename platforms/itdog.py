@@ -215,29 +215,31 @@ class ItDogPlatform(MonitorPlatform):
                 if stable >= 3:
                     break
                 page.wait_for_timeout(500)
-            safe_domain = re.sub(r"[^a-zA-Z0-9_.-]", "_", domain)
-            screenshot_dir = cfg.screenshot_dir
-            os.makedirs(screenshot_dir, exist_ok=True)
-            screenshot_path = os.path.join(screenshot_dir, f"itdog_{int(time.time())}_{safe_domain}.png")
-            try:
-                page.evaluate(
-                    """
-                    async () => {
-                      let last = 0;
-                      for (let i=0;i<20;i++) {
-                        window.scrollTo(0, document.body.scrollHeight);
-                        await new Promise(r => setTimeout(r, 400));
-                        const h = document.body.scrollHeight;
-                        if (Math.abs(h - last) < 5) break;
-                        last = h;
-                      }
-                    }
-                    """
-                )
-            except Exception:
-                pass
-            page.screenshot(path=screenshot_path, full_page=True)
-            logging.info(f"screenshot path={screenshot_path}")
+            screenshot_path = None
+            if getattr(cfg, "screenshot_enabled", True):
+                safe_domain = re.sub(r"[^a-zA-Z0-9_.-]", "_", domain)
+                screenshot_dir = cfg.screenshot_dir
+                os.makedirs(screenshot_dir, exist_ok=True)
+                screenshot_path = os.path.join(screenshot_dir, f"itdog_{int(time.time())}_{safe_domain}.png")
+                try:
+                    page.evaluate(
+                        """
+                        async () => {
+                          let last = 0;
+                          for (let i=0;i<20;i++) {
+                            window.scrollTo(0, document.body.scrollHeight);
+                            await new Promise(r => setTimeout(r, 400));
+                            const h = document.body.scrollHeight;
+                            if (Math.abs(h - last) < 5) break;
+                            last = h;
+                          }
+                        }
+                        """
+                    )
+                except Exception:
+                    pass
+                page.screenshot(path=screenshot_path, full_page=True)
+                logging.info(f"screenshot path={screenshot_path}")
             results: List[Dict[str, Any]] = []
             tables = page.locator("table")
             for i in range(tables.count()):
