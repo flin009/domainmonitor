@@ -9,11 +9,13 @@ try:
     from ..config import get_config
     from ..db import Db
     from ..platforms.itdog import ItDogPlatform
+    from ..scripts.alert_telegram import is_success, send_telegram, build_message
 except Exception:
     sys.path.append(os.path.dirname(os.path.dirname(__file__)))
     from config import get_config  # type: ignore
     from db import Db  # type: ignore
     from platforms.itdog import ItDogPlatform  # type: ignore
+    from scripts.alert_telegram import is_success, send_telegram, build_message  # type: ignore
 
 
 def connect():
@@ -125,6 +127,29 @@ def process_one(db: Db, waiting_id: int, domain: str, proxy: Optional[str], head
             ocr = None
         if count != parsed_count or (ocr is not None and ocr != parsed_count):
             status = "partial"
+        try:
+            threshold_env = os.getenv("ALERT_FAIL_THRESHOLD") or os.getenv("FAIL_RATIO_THRESHOLD")
+            threshold = float(threshold_env) if threshold_env else 0.2
+        except Exception:
+            threshold = 0.2
+        if parsed_count > 0:
+            fail = 0
+            try:
+                for r in results:
+                    code = r.get("status_code")
+                    fail += 0 if is_success(code) else 1
+            except Exception:
+                fail = 0
+            ratio = (fail / parsed_count) if parsed_count else 0.0
+            logging.info(f"fail_ratio domain={domain} task_id={task_id} total_nodes={parsed_count} fail={fail} ratio={ratio:.4f} threshold={threshold}")
+            if ratio > threshold:
+                try:
+                    from datetime import datetime, timezone
+                    msg = build_message(domain, parsed_count, datetime.now(timezone.utc), ratio)
+                    ok, info = send_telegram(msg, None, None)
+                    logging.info(f"telegram_send ok={ok} info={info}")
+                except Exception as e:
+                    logging.warning(f"telegram_send error domain={domain} err={e}")
         total_ms = (time.time() - t0) * 1000.0
         logging.info(f"worker done domain={domain} waiting_id={waiting_id} status={status} count={count} parsed={parsed_count} ocr={ocr} total_ms={total_ms}")
         return True

@@ -16,7 +16,6 @@ class Config:
     referer: Optional[str]
     cookie: Optional[str]
     screenshot_dir: str
-    screenshot_enabled: bool
 
 
 def _bool_env(name: str, default: bool) -> bool:
@@ -44,6 +43,5 @@ def get_config() -> Config:
         referer=os.getenv("REFERER"),
         cookie=os.getenv("COOKIE"),
         screenshot_dir=os.getenv("SCREENSHOT_DIR", os.path.join(".", "screenshots")),
-        screenshot_enabled=_bool_env("SCREENSHOT_ENABLED", True),
     )
 
