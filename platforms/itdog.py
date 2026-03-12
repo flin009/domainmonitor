@@ -98,9 +98,10 @@ class ItDogPlatform(MonitorPlatform):
             b0 = time.time()
             browser = p.chromium.launch(**launch_opts)
             browser_launch_ms = (time.time() - b0) * 1000.0
-            context = browser.new_context()
+            ctx_opts = {}
             if user_agent:
-                context = browser.new_context(user_agent=user_agent)
+                ctx_opts["user_agent"] = user_agent
+            context = browser.new_context(**ctx_opts)
             logging.info(f"launch browser headless={headless} proxy={proxy_server or ''}")
             blocked_types = {"image", "media", "font", "stylesheet"}
             blocked_hosts = {
@@ -400,8 +401,18 @@ class ItDogPlatform(MonitorPlatform):
                 seen.add(key)
                 uniq.append(r)
             results = uniq
-            context.close()
-            browser.close()
+            try:
+                page.close()
+            except Exception:
+                pass
+            try:
+                context.close()
+            except Exception:
+                pass
+            try:
+                browser.close()
+            except Exception:
+                pass
         collect_ms = (time.time() - start) * 1000.0
         metrics = {
             "browser_launch_ms": browser_launch_ms or 0.0,
