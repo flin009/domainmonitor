@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import signal
 import sys
 import time
 import psycopg2
@@ -16,6 +17,40 @@ except Exception:
     from db import Db  # type: ignore
     from platforms.itdog import ItDogPlatform  # type: ignore
     from scripts.alert_telegram import is_success, send_telegram, build_message  # type: ignore
+
+
+def _is_pid_namespace_init() -> bool:
+    try:
+        with open("/proc/self/status", "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                if line.startswith("NSpid:"):
+                    parts = line.split()[1:]
+                    return bool(parts) and parts[-1] == "1"
+    except Exception:
+        pass
+    return os.getpid() == 1
+
+
+def _reap_children(_signum=None, _frame=None) -> None:
+    while True:
+        try:
+            pid, _status = os.waitpid(-1, os.WNOHANG)
+        except ChildProcessError:
+            return
+        except OSError:
+            return
+        if pid == 0:
+            return
+
+
+def _install_sigchld_reaper() -> None:
+    if not _is_pid_namespace_init():
+        return
+    try:
+        signal.signal(signal.SIGCHLD, _reap_children)
+    except Exception:
+        return
+    _reap_children()
 
 
 def connect():
@@ -188,6 +223,7 @@ def main():
         h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
         root.addHandler(h)
     root.setLevel(logging.INFO)
+    _install_sigchld_reaper()
     cfg = get_config()
     headless = cfg.headless
     if args.headless:
