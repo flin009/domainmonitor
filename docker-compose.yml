@@ -50,34 +50,7 @@ services:
     volumes:
       - ./screenshots:/app/screenshots
       - ./:/app/
-        
-  worker3:
-    build: .
-    depends_on:
-      - db
-    env_file:
-      - .env
-    environment:
-      DB_HOST: db
-      TZ: Asia/Shanghai
-    command: python task_worker/worker.py --batch-size 5 --lease-minutes 15 --poll-seconds 10 --headless
-    volumes:
-      - ./screenshots:/app/screenshots
-      - ./:/app/
 
-  worker4:
-    build: .
-    depends_on:
-      - db
-    env_file:
-      - .env
-    environment:
-      DB_HOST: db
-      TZ: Asia/Shanghai
-    command: python task_worker/worker.py --batch-size 5 --lease-minutes 15 --poll-seconds 10 --headless
-    volumes:
-      - ./screenshots:/app/screenshots
-      - ./:/app/
         
   admin:
     build: .
